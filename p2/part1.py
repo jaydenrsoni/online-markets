@@ -1,96 +1,91 @@
 import numpy as np
 import math
 
-def dataset1(n, k, p):
-    ## 2 actions, 3 rounds [[0, 0], [0, 0], [0, 0]]
+# payoff data formatting examples
+# 2 actions, 3 rounds [[0, 0], [0, 0], [0, 0]]
+# 3 actions, 2 rounds [[0, 0, 0], [0, 0, 0]]
+
+
+# bernoulli payoffs with probability p for each action k in any round n
+def gen_data1(n, k, p, verbose=True):
     payoffs = [[0] * k for _ in range(n)]
     for i in range(n):
         for j in range(k):
             if np.random.random_sample() < p[j]:
                 payoffs[i][j] = 1
-    print(payoffs)
+    if verbose:
+        print(payoffs)
     return payoffs
 
 
-def dataset2():
+def gen_data2():
     return 0    
 
 
-def exponential_weights(data, lr, h):
-    action_payoffs = [0] * len(data[0])
-    actions = []
-    total_payoff = 0
-
-    for round in data:
-        probabilities = []
-        sum_probabilities = 0
-        for i in range(len(round)):
-            p = math.pow((1 + lr), action_payoffs[i]/h)
-            probabilities.append(p)
-            sum_probabilities += p
-        probabilities = [p/sum_probabilities for p in probabilities]
-        print(probabilities)
-
-        action = np.random.choice(len(round), 1, p=probabilities)[0]
-        actions.append(action)
-        total_payoff += round[action]
-
-        # update V
-        for i in range(len(round)):
-            action_payoffs[i] += round[i]
-        print("action payoffs: ", action_payoffs)
-    print(total_payoff, actions)
-
-    best_in_hindsight_payoff = max(action_payoffs)
-    regret = (best_in_hindsight_payoff - total_payoff)/len(data)
-    print(regret)
-
-
-def follow_the_perturbed_leader(data, lr, h):
+def online_learning(data, lr, h, algo="ew", verbose=True):
     k = len(data[0])  # num actions
-    hallucinations = np.random.geometric(p=lr, size=k) * h
-    print(hallucinations)
+    hallucinations = np.random.geometric(p=lr, size=k) * h  # only used for ftpl
+    if algo == "ftpl":
+        print("hallucinations: ", hallucinations)
 
-    action_payoffs = [0] * len(data[0])
-    actions = []
-    total_payoff = 0
+    action_payoffs = [0] * k  # V vector holding cumulative payoffs of each action
+    actions = []  # list of actions algorithm takes
+    total_payoff = 0  # payoff of actions algorithm takes
 
-    for round in data:
-        action = np.argmax(np.add(hallucinations, action_payoffs))
+    # loop through payoffs round-by-round
+    for curr_payoffs in data:
+
+        # choose an action action using given algorithm
+        if algo == "ew":
+            raw_probabilities = [math.pow((1 + lr), action_payoffs[j]/h) for j in range(k)]
+            norm_probabilities = np.divide(raw_probabilities, math.fsum(raw_probabilities))
+            action = np.random.choice(k, 1, p=norm_probabilities)[0]
+            if verbose:
+                print("probabilities: ", norm_probabilities)
+
+        elif algo == "ftpl":
+            action = np.argmax(np.add(hallucinations, action_payoffs))
+
+        else:
+            raise Exception("not a valid algorithm")
+
         actions.append(action)
-        total_payoff += round[action]
+        total_payoff += curr_payoffs[action]
 
-        # update V
-        for i in range(len(round)):
-            action_payoffs[i] += round[i]
-        print("action payoffs: ", action_payoffs)
-    print(total_payoff, actions)
+        # update V with payoffs from current round
+        action_payoffs = np.add(action_payoffs, curr_payoffs)
+        if verbose:
+            print("action payoffs: ", action_payoffs)
 
+    # calculate OPT and regret
     best_in_hindsight_payoff = max(action_payoffs)
     regret = (best_in_hindsight_payoff - total_payoff) / len(data)
-    print(regret)
 
-
-def online_learning(data, lr, h, type="ew"):
-
+    print("actions (max of last 25 shown): ", actions[len(actions) - 20:])
+    print("total payoff: ", total_payoff)
+    print("regret: ", regret)
 
 
 if __name__ == '__main__':
-    data1 = dataset1(10, 3, [0.5] * 3)
-    exponential_weights(data1, 0.5, 1)
-    follow_the_perturbed_leader(data1, 0.5, 2)
-    # # theoretically optimal learning rate
-    # exponential_weights(dataset1(), 0)
-    # follow_the_perturbed_leader(dataset1(), 0)
 
-    # # empirically optimal learning rate
-    # exponential_weights(dataset1(), 0)
-    # follow_the_perturbed_leader(dataset1(), 0)
+    # basic testing
+    test_data = gen_data1(10, 3, [0.5] * 3)
+    online_learning(test_data, 0.5, 1, "ew")
+    online_learning(test_data, 0.5, 1, "ftpl")
 
-    # # theoretically optimal learning rate
-    # exponential_weights(dataset2(), 0)
-    # follow_the_perturbed_leader(dataset2(), 0)
+    # parameter set
+    n = 1000
+    k = 10
+    p = [0.5] * 10
+    data1 = gen_data1(n, k, p, verbose=False)
 
-    # # empirically optimal learning rate
-    # exponential_weights(dataset2(), 0)
-    # follow_the_perturbed_leader(dataset2(), 0)
+    # theoretically optimal learning rate
+    epsilon = math.sqrt(math.log(k)/n)
+    print("\nLearning rate: ", epsilon)
+
+    print("\nExponential Weights (theo): ")
+    online_learning(data1, epsilon, 1, algo="ew", verbose=False)
+    print("\nFollow the Perturbed Leader (theo): ")
+    online_learning(data1, epsilon, 1, algo="ftpl", verbose=False)
+
+    # empirically optimal learning rate
