@@ -47,7 +47,10 @@ def online_learning(data, lr, h, algo="ew", verbose=True):
 
         # choose an action action using given algorithm
         if algo == "ew":
-            raw_probabilities = [math.pow((1 + lr), action_payoffs[j]/h) for j in range(k)]
+            try:
+                raw_probabilities = [math.pow((1 + lr), action_payoffs[j]/h) for j in range(k)]
+            except OverflowError:
+                print("issue")
             norm_probabilities = np.divide(raw_probabilities, math.fsum(raw_probabilities))
             action = np.random.choice(k, 1, p=norm_probabilities)[0]
             if verbose:
@@ -74,7 +77,43 @@ def online_learning(data, lr, h, algo="ew", verbose=True):
     print("actions (max of last 25 shown): ", actions[len(actions) - 20:])
     print("total payoff: ", total_payoff)
     print("regret: ", regret)
-    return total_payoff
+    return total_payoff, best_in_hindsight_payoff
+
+
+def theoretical_lr(n, k, data):
+    epsilon = math.sqrt(math.log(k) / n)
+    print("\nTheoretically optimal learning rate: ", epsilon)
+
+    print("\nExponential Weights (theo): ")
+    online_learning(data, epsilon, 1, algo="ew", verbose=False)
+    print("\nFollow the Perturbed Leader (theo): ")
+    online_learning(data, epsilon, 1, algo="ftpl", verbose=False)
+
+
+def empirical_lr(data):
+    max_idx_ew = -1
+    max_val_ew = 0
+    max_idx_ftpl = -1
+    max_val_ftpl = 0
+    possible_epsilon = [x / 1000 for x in range(500)]  # 0.001 to 0.499 interval of 0.001
+    possible_epsilon.remove(0)
+    sys.stdout = open(os.devnull, 'w')  # stops printing
+    for idx, lr in enumerate(possible_epsilon):  # this loop takes a little while
+        val_ew, opt = online_learning(data, lr, 1, algo="ew", verbose=False)
+        val_ftpl, opt = online_learning(data, lr, 1, algo="ftpl", verbose=False)
+        if val_ew > max_val_ew:
+            max_val_ew = val_ew
+            max_idx_ew = idx
+        if val_ftpl > max_val_ftpl:
+            max_val_ftpl = val_ftpl
+            max_idx_ftpl = idx
+    sys.stdout = sys.__stdout__  # enables printing again
+    print("\nEmprically optimal learning rate for EW:", possible_epsilon[max_idx_ew])
+    print("total payoff: ", max_val_ew)
+    print("regret: ", (opt - max_val_ew) / len(data))
+    print("\nEmprically optimal learning rate for FTPL:", possible_epsilon[max_idx_ftpl])
+    print("total payoff: ", max_val_ftpl)
+    print("regret: ", (opt - max_val_ftpl) / len(data))
 
 
 def load_bids():
@@ -124,54 +163,34 @@ if __name__ == '__main__':
 
     np.random.seed(100)
 
-    # basic testing
-    test_data = gen_data1(10, 3, [0.5] * 3)
-    online_learning(test_data, 0.5, 1, "ew")
-    online_learning(test_data, 0.5, 1, "ftpl")
+    # Part 1
+    print("\nStarting Part 1...")
 
     # parameter set
-    n = 100000
+    n = 1000
     k = 10
     p = [0.1 * i + 0.05 for i in range(10)]
     data1 = gen_data1(n, k, p, verbose=False)
 
-    # theoretically optimal learning rate
-    epsilon = math.sqrt(math.log(k)/n)
-    print("\nLearning rate: ", epsilon)
+    n2 = 1000
+    k2 = 4
+    p1 = [0.2, 0.25, 0.3, 0.35]
+    kns = [10] * 4
+    p2 = [0.5, 0.45, 0.4, 0.35]
+    data2 = gen_data2(n2, k2, p1, kns, p2, verbose=False)
 
-    print("\nExponential Weights (theo): ")
-    online_learning(data1, epsilon, 1, algo="ew", verbose=False)
-    print("\nFollow the Perturbed Leader (theo): ")
-    online_learning(data1, epsilon, 1, algo="ftpl", verbose=False)
-
-    # empirically optimal learning rate
-    max_idx_ew = -1
-    max_val_ew = 0
-    max_idx_ftpl = -1
-    max_val_ftpl = 0
-    possible_epsilon = [x/1000 for x in range(300)]  # 0.001 to 0.299 interval of 0.001
-    possible_epsilon.remove(0)
-    sys.stdout = open(os.devnull, 'w')  # stops printing
-    for idx,lr in enumerate(possible_epsilon):  # this loop takes a little while
-        val_ew =online_learning(data1, lr, 1, algo="ew", verbose=False)
-        val_ftpl = online_learning(data1, lr, 1, algo="ftpl", verbose=False)
-        if val_ew > max_val_ew:
-            max_val_ew = val_ew
-            max_idx_ew = idx
-        if val_ftpl > max_val_ftpl:
-            max_val_ftpl = val_ftpl
-            max_idx_ftpl = idx
-    sys.stdout = sys.__stdout__  # enables printing again
-    print("\nEmprically optimal learning rate for EW:", possible_epsilon[max_idx_ew])
-    print("payoff: ", max_val_ew)
-    print("\nEmprically optimal learning rate for FTPL:", possible_epsilon[max_idx_ftpl])
-    print("payoff: ", max_val_ftpl)
+    # run learning algorithms with optimal learning rates
+    theoretical_lr(n, k, data1)
+    empirical_lr(data1)
+    theoretical_lr(n2, k2, data2)
+    empirical_lr(data2)
 
     # Part 2
+    print("\n\nStarting Part 2...")
     val1 = 20.7
-    data2, eps2 = first_price_auction_payoffs(val1, 21, 200)
+    data2_1, eps2 = first_price_auction_payoffs(val1, 21, 200, verbose=False)
     print("\nExponential Weights (20.7): ")
-    online_learning(data2, eps2, val1, algo="ew", verbose=False)
+    online_learning(data2_1, eps2, val1, algo="ew", verbose=False)
     print("\nFollow the Perturbed Leader (20.7): ")
-    online_learning(data2, eps2, val1, algo="ftpl", verbose=False)
+    online_learning(data2_1, eps2, val1, algo="ftpl", verbose=False)
     # TODO: repeat for other vals, empirical lr for part 2, optimize discretization/lr to maximize payoff
