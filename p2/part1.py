@@ -94,11 +94,16 @@ def load_bids():
     return bids
 
 
-def first_price_auction_payoffs(value, verbose=True):
+def first_price_auction_payoffs(value, num_discrete_actions, num_rounds, verbose=True):
     bid_data = load_bids()
     n = len(bid_data)
 
-    bid_space = [x for x in range(int(math.ceil(value + 0.01)))]  # all integers between 0 to value, inclusive
+    if num_rounds > n:
+        indices = np.random.choice(n, num_rounds, replace=True)
+        bid_data = [bid_data[i] for i in indices]
+        n = len(bid_data)
+
+    bid_space = [x for x in np.linspace(0, value, num_discrete_actions)]  # all integers between 0 to value, inclusive
     k = len(bid_space)
 
     payoffs = [[0] * k for _ in range(n)]
@@ -111,14 +116,13 @@ def first_price_auction_payoffs(value, verbose=True):
 
     # calculate theoretically optimal learning rate
     theo_lr = math.sqrt(math.log(k)/n)
-    # TODO: empirical version?
-    # TODO: optimize the level of discretization?
-    # TODO: increase number of rounds n with random sample
 
     return payoffs, theo_lr
 
 
 if __name__ == '__main__':
+
+    np.random.seed(100)
 
     # basic testing
     test_data = gen_data1(10, 3, [0.5] * 3)
@@ -165,9 +169,9 @@ if __name__ == '__main__':
 
     # Part 2
     val1 = 20.7
-    data2, eps2 = first_price_auction_payoffs(val1)
+    data2, eps2 = first_price_auction_payoffs(val1, 21, 200)
     print("\nExponential Weights (20.7): ")
     online_learning(data2, eps2, val1, algo="ew", verbose=False)
     print("\nFollow the Perturbed Leader (20.7): ")
     online_learning(data2, eps2, val1, algo="ftpl", verbose=False)
-    # TODO: repeat for other vals?
+    # TODO: repeat for other vals, empirical lr for part 2, optimize discretization/lr to maximize payoff
