@@ -1,6 +1,6 @@
 import numpy as np
 import math
-
+import os, sys
 # payoff data formatting examples
 # 2 actions, 3 rounds [[0, 0], [0, 0], [0, 0]]
 # 3 actions, 2 rounds [[0, 0, 0], [0, 0, 0]]
@@ -64,6 +64,7 @@ def online_learning(data, lr, h, algo="ew", verbose=True):
     print("actions (max of last 25 shown): ", actions[len(actions) - 20:])
     print("total payoff: ", total_payoff)
     print("regret: ", regret)
+    return total_payoff
 
 
 if __name__ == '__main__':
@@ -88,4 +89,25 @@ if __name__ == '__main__':
     print("\nFollow the Perturbed Leader (theo): ")
     online_learning(data1, epsilon, 1, algo="ftpl", verbose=False)
 
-    # empirically optimal learning rate
+    #find empirically optimal learning rate
+    max_idx_ew = -1
+    max_val_ew = 0
+    max_idx_ftpl = -1
+    max_val_ftpl = 0
+    possible_epsilon = [x/1000 for x in range(300)] #0.001 to 0.299 interval of 0.001
+    possible_epsilon.remove(0)
+    sys.stdout = open(os.devnull, 'w') #stops printing
+    for idx,lr in enumerate(possible_epsilon): #this loop takes a little while
+        val_ew =online_learning(data1, lr, 1, algo="ew", verbose=False)
+        val_ftpl = online_learning(data1, lr, 1, algo="ftpl", verbose=False)
+        if val_ew > max_val_ew:
+            max_val_ew = val_ew
+            max_idx_ew = idx
+        if val_ftpl > max_val_ftpl:
+            max_val_ftpl = val_ftpl
+            max_idx_ftpl = idx
+    sys.stdout = sys.__stdout__ #enables printing again
+    print("\nEmprically optimal learning rate for EW:", possible_epsilon[max_idx_ew])
+    print("payoff: ", max_val_ew)
+    print("\nEmprically optimal learning rate for FTPL:", possible_epsilon[max_idx_ftpl])
+    print("payoff: ", max_val_ftpl)
