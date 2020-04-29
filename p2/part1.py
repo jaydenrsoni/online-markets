@@ -1,6 +1,8 @@
 import numpy as np
 import math
-import os, sys, csv
+import os
+import sys
+import csv
 
 # payoff data formatting examples
 # 2 actions, 3 rounds [[0, 0], [0, 0], [0, 0]]
@@ -47,10 +49,7 @@ def online_learning(data, lr, h, algo="ew", verbose=True):
 
         # choose an action action using given algorithm
         if algo == "ew":
-            try:
-                raw_probabilities = [math.pow((1 + lr), action_payoffs[j]/h) for j in range(k)]
-            except OverflowError:
-                print("issue")
+            raw_probabilities = [math.pow((1 + lr), action_payoffs[j]/h) for j in range(k)]
             norm_probabilities = np.divide(raw_probabilities, math.fsum(raw_probabilities))
             action = np.random.choice(k, 1, p=norm_probabilities)[0]
             if verbose:
@@ -108,10 +107,10 @@ def empirical_lr(data):
             max_val_ftpl = val_ftpl
             max_idx_ftpl = idx
     sys.stdout = sys.__stdout__  # enables printing again
-    print("\nEmprically optimal learning rate for EW:", possible_epsilon[max_idx_ew])
+    print("\nEmpirically optimal learning rate for EW:", possible_epsilon[max_idx_ew])
     print("total payoff: ", max_val_ew)
     print("regret: ", (opt - max_val_ew) / len(data))
-    print("\nEmprically optimal learning rate for FTPL:", possible_epsilon[max_idx_ftpl])
+    print("\nEmpirically optimal learning rate for FTPL:", possible_epsilon[max_idx_ftpl])
     print("total payoff: ", max_val_ftpl)
     print("regret: ", (opt - max_val_ftpl) / len(data))
 
@@ -133,7 +132,7 @@ def load_bids():
     return bids
 
 
-def first_price_auction_payoffs(value, num_discrete_actions, num_rounds, verbose=True):
+def first_price_auction_results(value, num_rounds, num_discrete_actions, emp_lr):
     bid_data = load_bids()
     n = len(bid_data)
 
@@ -150,13 +149,54 @@ def first_price_auction_payoffs(value, num_discrete_actions, num_rounds, verbose
         for j in range(k):
             if bid_space[j] > bid_data[i]:
                 payoffs[i][j] = value - bid_space[j]
-    if verbose:
-        print(payoffs)
 
     # calculate theoretically optimal learning rate
     theo_lr = math.sqrt(math.log(k)/n)
 
-    return payoffs, theo_lr
+    theo_ew = online_learning(payoffs, theo_lr, value, algo="ew", verbose=False)[0]
+    emp_ew = online_learning(payoffs, emp_lr, value, algo="ew", verbose=False)[0]
+    theo_ftpl = online_learning(payoffs, theo_lr, value, algo="ftpl", verbose=False)[0]
+    emp_ftpl = online_learning(payoffs, emp_lr, value, algo="ftpl", verbose=False)[0]
+
+    return theo_ew, emp_ew, theo_ftpl, emp_ftpl, theo_lr
+
+
+def first_price_auction(value, num_rounds, opt, verbose=True):
+    print("\nRunning a first price auction with value = ", value)
+    possible_epsilon = [x / 100 for x in range(50)]  # 0.01 to 0.49, interval of 0.01
+    num_action_bins = [x for x in range(2, int(value*2), 2)]  # bin size from value/2 down to ~ 0.5, step size of 2
+
+    max_theo_ew = (0, 0, 0)  # payoff, theo_lr, num_action_bins
+    max_emp_ew = (0, 0, 0)   # payoff, emp_lr, num_action_bins
+    max_theo_ftpl = (0, 0, 0)
+    max_emp_ftpl = (0, 0, 0)
+
+    sys.stdout = open(os.devnull, 'w')  # stops printing
+    for lr in possible_epsilon:
+        for k in num_action_bins:
+            theo_ew, emp_ew, theo_ftpl, emp_ftpl, theo_lr = first_price_auction_results(value, num_rounds, k, lr)
+            if theo_ew > max_theo_ew[0]:
+                max_theo_ew = (theo_ew, theo_lr, k)
+            if emp_ew > max_emp_ew[0]:
+                max_emp_ew = (emp_ew, lr, k)
+            if theo_ftpl > max_theo_ftpl[0]:
+                max_theo_ftpl = (theo_ftpl, theo_lr, k)
+            if emp_ftpl > max_emp_ftpl[0]:
+                max_emp_ftpl = (emp_ftpl, lr, k)
+
+    best = max([max_theo_ew, max_emp_ew, max_theo_ftpl, max_emp_ftpl], key=lambda x: x[0])
+    regret = opt - best[0]/num_rounds
+
+    sys.stdout = sys.__stdout__  # enables printing again
+    if verbose:
+        print("\nAlgorithm Payoffs: ", [x[0] for x in [max_theo_ew, max_emp_ew, max_theo_ftpl, max_emp_ftpl]])
+        print("\nOptimal Tuning...")
+        print("learning rate: ", best[1])
+        print("discrete actions: ", best[2])
+        print("payoff: ", best[0])
+        print("regret: ", regret)
+
+    return best, regret
 
 
 if __name__ == '__main__':
@@ -166,31 +206,43 @@ if __name__ == '__main__':
     # Part 1
     print("\nStarting Part 1...")
 
-    # parameter set
-    n = 1000
-    k = 10
-    p = [0.1 * i + 0.05 for i in range(10)]
-    data1 = gen_data1(n, k, p, verbose=False)
+    # bernoulli payoff matrix generation
+    data1a = gen_data1(1000, 10, [0.1 * i + 0.05 for i in range(10)], verbose=False)
+    data1b = gen_data1(100, 10, [0.1 * i + 0.05 for i in range(10)], verbose=False)
+    data1c = gen_data1(500, 2, [0.4, 0.6], verbose=False) + gen_data1(500, 2, [0.6, 0.4], verbose=False)
+    data1d = gen_data1(500, 5, [0.5] * 5, verbose=False)
 
-    n2 = 1000
-    k2 = 4
-    p1 = [0.2, 0.25, 0.3, 0.35]
-    kns = [10] * 4
-    p2 = [0.5, 0.45, 0.4, 0.35]
-    data2 = gen_data2(n2, k2, p1, kns, p2, verbose=False)
+    # payoff matrix generation with gen_data2(num rounds, num actions, sale ps, binomial amt trials, binomial amt ps)
+    data2a = gen_data2(1000, 4, [0.2, 0.25, 0.3, 0.35], [10] * 4, [0.5, 0.45, 0.4, 0.35], verbose=False)
+    data2b = gen_data2(1000, 4, [0.2, 0.25, 0.3, 0.35], [10, 9, 8, 7], [0.5] * 4, verbose=False)
+    data2c = gen_data2(1000, 4, [0.2] * 4, [2, 4, 6, 8], [0.8, 0.6, 0.4, 0.2], verbose=False)
+    data2d = gen_data2(100, 4, [0.2] * 4, [10] * 4, [0.5, 0.45, 0.4, 0.35], verbose=False)
 
     # run learning algorithms with optimal learning rates
-    theoretical_lr(n, k, data1)
-    empirical_lr(data1)
-    theoretical_lr(n2, k2, data2)
-    empirical_lr(data2)
+    theoretical_lr(1000, 10, data1a)
+    empirical_lr(data1a)
+    theoretical_lr(100, 10, data1b)
+    empirical_lr(data1b)
+    theoretical_lr(500, 2, data1c)
+    empirical_lr(data1c)
+    theoretical_lr(500, 5, data1d)
+    empirical_lr(data1d)
+
+    theoretical_lr(1000, 4, data2a)
+    empirical_lr(data2a)
+    theoretical_lr(1000, 4, data2b)
+    empirical_lr(data2b)
+    theoretical_lr(1000, 4, data2c)
+    empirical_lr(data2c)
+    theoretical_lr(1000, 4, data2d)
+    empirical_lr(data2d)
 
     # Part 2
     print("\n\nStarting Part 2...")
-    val1 = 20.7
-    data2_1, eps2 = first_price_auction_payoffs(val1, 21, 200, verbose=False)
-    print("\nExponential Weights (20.7): ")
-    online_learning(data2_1, eps2, val1, algo="ew", verbose=False)
-    print("\nFollow the Perturbed Leader (20.7): ")
-    online_learning(data2_1, eps2, val1, algo="ftpl", verbose=False)
-    # TODO: repeat for other vals, empirical lr for part 2, optimize discretization/lr to maximize payoff
+    first_price_auction(20.7, 300, 1.47)
+    first_price_auction(38.2, 300, 5.1)
+    first_price_auction(51.6, 300, 9.07)
+    first_price_auction(93.7, 300, 30.31)
+
+    for n in range(100, 1001, 100):
+        print(first_price_auction(51.6, n, 9.07, verbose=False))
