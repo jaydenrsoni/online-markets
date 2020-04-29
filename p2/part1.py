@@ -79,27 +79,28 @@ def online_learning(data, lr, h, algo="ew", verbose=True):
     return total_payoff, best_in_hindsight_payoff
 
 
-def theoretical_lr(n, k, data):
+def theoretical_lr(n, k, h, data):
     epsilon = math.sqrt(math.log(k) / n)
     print("\nTheoretically optimal learning rate: ", epsilon)
 
     print("\nExponential Weights (theo): ")
-    online_learning(data, epsilon, 1, algo="ew", verbose=False)
+    online_learning(data, epsilon, h, algo="ew", verbose=False)
     print("\nFollow the Perturbed Leader (theo): ")
-    online_learning(data, epsilon, 1, algo="ftpl", verbose=False)
+    online_learning(data, epsilon, h, algo="ftpl", verbose=False)
 
 
-def empirical_lr(data):
+def empirical_lr(h, data):
     max_idx_ew = -1
     max_val_ew = 0
     max_idx_ftpl = -1
     max_val_ftpl = 0
     possible_epsilon = [x / 1000 for x in range(500)]  # 0.001 to 0.499 interval of 0.001
     possible_epsilon.remove(0)
+
     sys.stdout = open(os.devnull, 'w')  # stops printing
     for idx, lr in enumerate(possible_epsilon):  # this loop takes a little while
-        val_ew, opt = online_learning(data, lr, 1, algo="ew", verbose=False)
-        val_ftpl, opt = online_learning(data, lr, 1, algo="ftpl", verbose=False)
+        val_ew, opt = online_learning(data, lr, h, algo="ew", verbose=False)
+        val_ftpl, opt = online_learning(data, lr, h, algo="ftpl", verbose=False)
         if val_ew > max_val_ew:
             max_val_ew = val_ew
             max_idx_ew = idx
@@ -107,6 +108,7 @@ def empirical_lr(data):
             max_val_ftpl = val_ftpl
             max_idx_ftpl = idx
     sys.stdout = sys.__stdout__  # enables printing again
+
     print("\nEmpirically optimal learning rate for EW:", possible_epsilon[max_idx_ew])
     print("total payoff: ", max_val_ew)
     print("regret: ", (opt - max_val_ew) / len(data))
@@ -132,18 +134,17 @@ def load_bids():
     return bids
 
 
-def first_price_auction_results(value, num_rounds, num_discrete_actions, emp_lr):
-    bid_data = load_bids()
-    n = len(bid_data)
+def first_price_auction_results(value, n, num_discrete_actions, emp_lr):
+    # sample n bids randomly from bid data
+    raw_data = load_bids()
+    indices = np.random.choice(len(raw_data), n, replace=True)
+    bid_data = [raw_data[i] for i in indices]
 
-    if num_rounds > n:
-        indices = np.random.choice(n, num_rounds, replace=True)
-        bid_data = [bid_data[i] for i in indices]
-        n = len(bid_data)
-
+    # discretize bid space
     bid_space = [x for x in np.linspace(0, value, num_discrete_actions)]  # all integers between 0 to value, inclusive
     k = len(bid_space)
 
+    # calculate payoffs
     payoffs = [[0] * k for _ in range(n)]
     for i in range(n):
         for j in range(k):
@@ -153,6 +154,7 @@ def first_price_auction_results(value, num_rounds, num_discrete_actions, emp_lr)
     # calculate theoretically optimal learning rate
     theo_lr = math.sqrt(math.log(k)/n)
 
+    # run learning algorithms
     theo_ew = online_learning(payoffs, theo_lr, value, algo="ew", verbose=False)[0]
     emp_ew = online_learning(payoffs, emp_lr, value, algo="ew", verbose=False)[0]
     theo_ftpl = online_learning(payoffs, theo_lr, value, algo="ftpl", verbose=False)[0]
@@ -172,6 +174,8 @@ def first_price_auction(value, num_rounds, opt, verbose=True):
     max_emp_ftpl = (0, 0, 0)
 
     sys.stdout = open(os.devnull, 'w')  # stops printing
+
+    # optimize payoffs for both algorithms, learning/empirical lr over all possible empirical lrs and num actions
     for lr in possible_epsilon:
         for k in num_action_bins:
             theo_ew, emp_ew, theo_ftpl, emp_ftpl, theo_lr = first_price_auction_results(value, num_rounds, k, lr)
@@ -184,6 +188,7 @@ def first_price_auction(value, num_rounds, opt, verbose=True):
             if emp_ftpl > max_emp_ftpl[0]:
                 max_emp_ftpl = (emp_ftpl, lr, k)
 
+    # calculate best payoff and regret out of 4 algorithm/lr combinations
     best = max([max_theo_ew, max_emp_ew, max_theo_ftpl, max_emp_ftpl], key=lambda x: x[0])
     regret = opt - best[0]/num_rounds
 
@@ -196,7 +201,7 @@ def first_price_auction(value, num_rounds, opt, verbose=True):
         print("payoff: ", best[0])
         print("regret: ", regret)
 
-    return best, regret
+    return best, best[0]/num_rounds, regret  # (total payoff, lr, k), per-round payoff, per-round regret
 
 
 if __name__ == '__main__':
@@ -219,27 +224,27 @@ if __name__ == '__main__':
     data2d = gen_data2(100, 4, [0.2] * 4, [10] * 4, [0.5, 0.45, 0.4, 0.35], verbose=False)
 
     # run learning algorithms with optimal learning rates
-    theoretical_lr(1000, 10, data1a)
-    empirical_lr(data1a)
-    theoretical_lr(100, 10, data1b)
-    empirical_lr(data1b)
-    theoretical_lr(500, 2, data1c)
-    empirical_lr(data1c)
-    theoretical_lr(500, 5, data1d)
-    empirical_lr(data1d)
+    theoretical_lr(1000, 10, 1, data1a)
+    empirical_lr(1, data1a)
+    theoretical_lr(100, 10, 1, data1b)
+    empirical_lr(1, data1b)
+    theoretical_lr(500, 2, 1, data1c)
+    empirical_lr(1, data1c)
+    theoretical_lr(500, 5, 1, data1d)
+    empirical_lr(1, data1d)
 
-    theoretical_lr(1000, 4, data2a)
-    empirical_lr(data2a)
-    theoretical_lr(1000, 4, data2b)
-    empirical_lr(data2b)
-    theoretical_lr(1000, 4, data2c)
-    empirical_lr(data2c)
-    theoretical_lr(1000, 4, data2d)
-    empirical_lr(data2d)
+    theoretical_lr(1000, 4, 10, data2a)
+    empirical_lr(10, data2a)
+    theoretical_lr(1000, 4, 10, data2b)
+    empirical_lr(10, data2b)
+    theoretical_lr(1000, 4, 8, data2c)
+    empirical_lr(8, data2c)
+    theoretical_lr(1000, 4, 10, data2d)
+    empirical_lr(10, data2d)
 
     # Part 2
     print("\n\nStarting Part 2...")
-    first_price_auction(20.7, 300, 1.47)
+    first_price_auction(20.7, 300, 1.47)  # value, num rounds, opt per-round utility
     first_price_auction(38.2, 300, 5.1)
     first_price_auction(51.6, 300, 9.07)
     first_price_auction(93.7, 300, 30.31)
