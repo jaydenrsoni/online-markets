@@ -1,6 +1,21 @@
 import numpy as np
 import math
-import os, sys
+import os, sys, csv
+
+def get_bid():
+    with open('bid_data.csv') as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        ct = 0
+        global values, bids
+        values = []
+        bids = []
+        for row in csv_reader:
+            if ct == 0:
+                ct+= 1
+                continue
+            values.append(row[0])
+            bids.append(row[1])
+            
 # payoff data formatting examples
 # 2 actions, 3 rounds [[0, 0], [0, 0], [0, 0]]
 # 3 actions, 2 rounds [[0, 0, 0], [0, 0, 0]]
@@ -89,7 +104,7 @@ if __name__ == '__main__':
     print("\nFollow the Perturbed Leader (theo): ")
     online_learning(data1, epsilon, 1, algo="ftpl", verbose=False)
 
-    #find empirically optimal learning rate
+    find empirically optimal learning rate
     max_idx_ew = -1
     max_val_ew = 0
     max_idx_ftpl = -1
@@ -111,3 +126,7 @@ if __name__ == '__main__':
     print("payoff: ", max_val_ew)
     print("\nEmprically optimal learning rate for FTPL:", possible_epsilon[max_idx_ftpl])
     print("payoff: ", max_val_ftpl)
+
+    #part 2
+    get_bid()
+    
