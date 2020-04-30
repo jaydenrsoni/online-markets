@@ -228,7 +228,7 @@ if __name__ == '__main__':
     empirical_lr(1, data1a)
     theoretical_lr(100, 10, 1, data1b)
     empirical_lr(1, data1b)
-    theoretical_lr(500, 2, 1, data1c)
+    theoretical_lr(1000, 2, 1, data1c)
     empirical_lr(1, data1c)
     theoretical_lr(500, 5, 1, data1d)
     empirical_lr(1, data1d)
@@ -239,7 +239,7 @@ if __name__ == '__main__':
     empirical_lr(10, data2b)
     theoretical_lr(1000, 4, 8, data2c)
     empirical_lr(8, data2c)
-    theoretical_lr(1000, 4, 10, data2d)
+    theoretical_lr(100, 4, 10, data2d)
     empirical_lr(10, data2d)
 
     # Part 2
