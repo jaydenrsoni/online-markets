@@ -255,6 +255,16 @@ def online_competition(mat, n, lr, alg1, alg2, print_out=True, verbose=False):
         elif alg1 == "hold_right":
             action1 = np.argmax(max_payoffs1)
 
+        elif alg1 == "random":
+            action1 = np.random.choice(range(k))
+
+        elif alg1 == "reactive":
+            mapping = {0:2, 1:0, 2:2}
+            if not actions2:
+                action1 = 2
+            else:
+                action1 = mapping[action2]
+
         else:
             raise Exception("not a valid algorithm")
 
@@ -274,6 +284,9 @@ def online_competition(mat, n, lr, alg1, alg2, print_out=True, verbose=False):
 
         elif alg2 == "hold_right":
             action2 = np.argmax(max_payoffs2)
+
+        elif alg2 == "random":
+            action2 = np.random.choice(range(k))
 
         else:
             raise Exception("not a valid algorithm")
@@ -301,23 +314,32 @@ def online_competition(mat, n, lr, alg1, alg2, print_out=True, verbose=False):
         print("actions: ", actions2)
         print("total payoff: ", total_payoff2)
 
-    return int(total_payoff2 > total_payoff1)   # 0 if player 1 wins, 1 if player 2 wins
+    return total_payoff1, total_payoff2
 
 
 def run_simulations(num_trials, num_rounds, pay_mat, alg1, alg2, print_option=False):
 
     wins = [0, 0]
+    overall_payoff1 = 0
+    overall_payoff2 = 0
+
     for _ in range(num_trials):
-        winner = online_competition(pay_mat, num_rounds, theoretical_lr(num_rounds, len(pay_mat)),
+        payoff1, payoff2 = online_competition(pay_mat, num_rounds, theoretical_lr(num_rounds, len(pay_mat)),
                                     alg1, alg2, print_out=print_option)
+        
+        winner = int(payoff2 > payoff1)   # 0 if player 1 wins, 1 if player 2 wins
         wins[winner] += 1
+
+        overall_payoff1 += payoff1/num_rounds
+        overall_payoff2 += payoff2/num_rounds
 
     print("\nPayoff Matrix: ")
     for row in pay_mat:
         print(row)
     print("Algorithm 1: ", alg1)
     print("Algorithm 2: ", alg2)
-    print(wins)
+    print("Wins: ", wins)
+    print("Average Payoff: ", (overall_payoff1/num_trials, overall_payoff2/num_trials))
 
 
 def ew_action(rp, verb):
@@ -411,8 +433,31 @@ if __name__ == "__main__":
     # (0, 0)   (2, 4)
     bots4 = (((8, 2), (0, 0)), ((0, 0), (2, 4)))
 
+    assurance1 = (((10, 10), (0, 0)), ((0, 0), (5, 5)))
+
+    assurance2 = (((100, 100), (0, 0)), ((0, 0), (5, 5)))
+
+    assurance3 = (((100, 100), (0, 0)), ((0, 0), (99, 99)))
+
+    # (2, 2)   (4, 0)    (4, 0)  
+    # (0, 4)   (3, 3)    (5, 1)
+    # (0, 4)   (1, 5)    (4, 4)
+    comp1 = (((2,2), (4,0), (4,0)), ((0, 4), (3,3), (5,1)), ((0, 4), (1, 5), (4, 4)))
+
     number_of_trials = 100
     nrounds = 1000
 
-    part1()
-    part2()
+    # run_simulations(number_of_trials, nrounds, comp1, "reactive", "ew")
+    # part1()
+    # part2()
+
+
+    # run_simulations(number_of_trials, nrounds, bots1, "ftpl_nonuniform", "ftpl_nonuniform")
+    # run_simulations(number_of_trials, nrounds, bots2, "ftpl_nonuniform", "ftpl_nonuniform")
+    # run_simulations(number_of_trials, nrounds, bots3, "ftpl_nonuniform", "ftpl_nonuniform")
+    # run_simulations(number_of_trials, nrounds, bots4, "ftpl_nonuniform", "ftpl_nonuniform")
+    run_simulations(number_of_trials, nrounds, assurance1, "ftpl_nonuniform", "ftpl_nonuniform")
+    run_simulations(number_of_trials, nrounds, assurance2, "ftpl_nonuniform", "ftpl_nonuniform")
+    run_simulations(number_of_trials, nrounds, assurance3, "ftpl_nonuniform", "ftpl_nonuniform")
+    run_simulations(number_of_trials, nrounds, assurance3, "ew", "ftpl_nonuniform")
+    
