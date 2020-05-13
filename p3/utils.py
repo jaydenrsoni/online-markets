@@ -252,6 +252,9 @@ def online_competition(mat, n, lr, alg1, alg2, print_out=True, verbose=False):
         elif alg1 == "ftpl" or alg1 == "ftpl_nonuniform":
             action1 = np.argmax(np.add(hallucinations1, action_payoffs1))
 
+        elif alg1 == "hold_right":
+            action1 = np.argmax(max_payoffs1)
+
         else:
             raise Exception("not a valid algorithm")
 
@@ -268,6 +271,9 @@ def online_competition(mat, n, lr, alg1, alg2, print_out=True, verbose=False):
 
         elif alg2 == "ftpl" or alg2 == "ftpl_nonuniform":
             action2 = np.argmax(np.add(hallucinations2, action_payoffs2))
+
+        elif alg2 == "hold_right":
+            action2 = np.argmax(max_payoffs2)
 
         else:
             raise Exception("not a valid algorithm")
@@ -326,29 +332,7 @@ def theoretical_lr(n, k):
     return math.sqrt(math.log(k) / n)
 
 
-if __name__ == "__main__":
-
-    # payoff matrices indexed as follows: bots[row][col][player]
-
-    # (10, 5)   (0, 0)
-    # (0, 0)    (5, 10)
-    bots1 = (((10, 5), (0, 0)), ((0, 0), (5, 10)))
-
-    # (5, 1)   (0, 0)
-    # (0, 0)   (1, 5)
-    bots2 = (((5, 1), (0, 0)), ((0, 0), (1, 5)))
-
-    # (5, 2)   (0, 0)
-    # (0, 0)   (2, 4)
-    bots3 = (((5, 2), (0, 0)), ((0, 0), (2, 4)))
-
-    # (8, 2)   (0, 0)
-    # (0, 0)   (2, 4)
-    bots4 = (((8, 2), (0, 0)), ((0, 0), (2, 4)))
-
-    number_of_trials = 100
-    nrounds = 1000
-
+def part1():
     print("\nSame algorithm for both players...\n")
     run_simulations(number_of_trials, nrounds, bots1, "ew", "ew")
     run_simulations(number_of_trials, nrounds, bots2, "ew", "ew")
@@ -395,3 +379,40 @@ if __name__ == "__main__":
     run_simulations(number_of_trials, nrounds, bots3, "ftpl_nonuniform", "ew")
     run_simulations(number_of_trials, nrounds, bots4, "ew", "ftpl_nonuniform")
     run_simulations(number_of_trials, nrounds, bots4, "ftpl_nonuniform", "ew")
+
+
+def part2():
+    print("\nPart 2...\n")
+    run_simulations(number_of_trials, nrounds, bots1, "hold_right", "ew")
+    run_simulations(number_of_trials, nrounds, bots2, "hold_right", "ew")
+    run_simulations(number_of_trials, nrounds, bots3, "hold_right", "ew")
+    run_simulations(number_of_trials, nrounds, bots3, "ew", "hold_right")
+    run_simulations(number_of_trials, nrounds, bots4, "hold_right", "ew")
+    run_simulations(number_of_trials, nrounds, bots4, "ew", "hold_right")
+
+
+if __name__ == "__main__":
+
+    # payoff matrices indexed as follows: bots[row][col][player]
+
+    # (10, 5)   (0, 0)
+    # (0, 0)    (5, 10)
+    bots1 = (((10, 5), (0, 0)), ((0, 0), (5, 10)))
+
+    # (5, 1)   (0, 0)
+    # (0, 0)   (1, 5)
+    bots2 = (((5, 1), (0, 0)), ((0, 0), (1, 5)))
+
+    # (5, 2)   (0, 0)
+    # (0, 0)   (2, 4)
+    bots3 = (((5, 2), (0, 0)), ((0, 0), (2, 4)))
+
+    # (8, 2)   (0, 0)
+    # (0, 0)   (2, 4)
+    bots4 = (((8, 2), (0, 0)), ((0, 0), (2, 4)))
+
+    number_of_trials = 100
+    nrounds = 1000
+
+    part1()
+    part2()
