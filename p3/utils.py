@@ -266,6 +266,19 @@ def part2():
     run_simulations(number_of_trials, nrounds, comp1, "reactive", "ftpl_nonuniform")
 
 
+def supplement():
+    # Part 1
+    run_simulations(number_of_trials, nrounds, bots3, "ew", "ew_nonuniform")
+    run_simulations(number_of_trials, nrounds, bots3, "ew_nonuniform", "ew")
+    run_simulations(number_of_trials, nrounds, bots4, "ew", "ew_nonuniform")
+    run_simulations(number_of_trials, nrounds, bots4, "ew_nonuniform", "ew")
+
+    run_simulations(number_of_trials, nrounds, bots3, "ftpl", "ftpl_nonuniform")
+    run_simulations(number_of_trials, nrounds, bots3, "ftpl_nonuniform", "ftpl")
+    run_simulations(number_of_trials, nrounds, bots4, "ftpl", "ftpl_nonuniform")
+    run_simulations(number_of_trials, nrounds, bots4, "ftpl_nonuniform", "ftpl")
+
+
 if __name__ == "__main__":
 
     # payoff matrices indexed as follows: bots[row][col][player]
@@ -298,8 +311,9 @@ if __name__ == "__main__":
     number_of_trials = 100
     nrounds = 1000
 
-    part1()
-    part2()
+    # part1()
+    # part2()
+    supplement()
 
 
 # the below functions are precursors to the online_competition function illustrating each of the 4 algorithms separately
