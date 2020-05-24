@@ -1,21 +1,41 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import math
 
 
-def online_reserve_pricing():
-    return None
+# num_bidders bidders with values on distribution f, num_items items for n rounds and k possible reserve prices [0,1)
+def gen_data(n, k, num_bidders, num_items, f, verbose=False):
+    payoffs = [[0] * k for _ in range(n)]
+    player_bids = [[f() for _ in range(num_bidders)] for _ in range(n)]
+    for i in range(n):
+        for j in range(k):
+            bids = set(player_bids[i])
+            max_bids = []
+            for _ in range(num_items):
+                max_bids.append(max(bids))
+                bids = bids - {max(bids)}
+            price = max(bids)
+            for bid in max_bids:
+                payoffs[i][j] += max(price, j/k) if bid >= j/k else 0
+    if verbose:
+        print(player_bids[0])
+        print(payoffs[0])
+    return payoffs
 
 
-# algorithm from project 2 for ew/ftpl
-def online_learning(data, lr, h, algo="ew", verbose=True):
-    k = len(data[0])  # num actions
+# part 1
+def online_reserve_pricing(data, lr, algo="ew", verbose=False):
+    n = len(data)                    # num rounds
+    k = len(data[0])                 # num actions
+    h = 1
+
     hallucinations = np.random.geometric(p=lr, size=k) * h  # only used for ftpl
-    if algo == "ftpl":
+    if verbose and algo == "ftpl":
         print("hallucinations: ", hallucinations)
 
     action_payoffs = [0] * k  # V vector holding cumulative payoffs of each action
     actions = []  # list of actions algorithm takes
-    total_payoff = 0  # payoff of actions algorithm takes
+    payoffs = []  # list of payoffs algorithm achieves
 
     # loop through payoffs round-by-round
     for curr_payoffs in data:
@@ -34,8 +54,8 @@ def online_learning(data, lr, h, algo="ew", verbose=True):
         else:
             raise Exception("not a valid algorithm")
 
-        actions.append(action)
-        total_payoff += curr_payoffs[action]
+        actions.append(action/k)
+        payoffs.append(curr_payoffs[action])
 
         # update V with payoffs from current round
         action_payoffs = np.add(action_payoffs, curr_payoffs)
@@ -44,13 +64,43 @@ def online_learning(data, lr, h, algo="ew", verbose=True):
 
     # calculate OPT and regret
     best_in_hindsight_payoff = max(action_payoffs)
-    regret = (best_in_hindsight_payoff - total_payoff) / len(data)
+    regret = (best_in_hindsight_payoff - sum(payoffs)) / len(data)
 
-    print("actions (max of last 25 shown): ", actions[len(actions) - 20:])
-    print("total payoff: ", total_payoff)
-    print("regret: ", regret)
-    return total_payoff, best_in_hindsight_payoff
+    print("last actions: ", actions[n - 100:])
+    print("last payoffs: ", payoffs[n - 100:])
+    print("converged action: ", sum(actions[n - 100:])/100)
+    print("converged payoff: ", sum(payoffs[n - 100:])/100)
+    print("best in hindsight action: ", np.argmax(action_payoffs)/k)
+    print("best in hindsight payoff: ", best_in_hindsight_payoff/n)
+    print("average payoff: ", sum(payoffs)/n)
+    print("regret: ", regret, "\n")
+    return actions
+
+
+def plot_results(data, lr):
+    actions1 = online_reserve_pricing(data, lr, algo="ew")
+    actions2 = online_reserve_pricing(data, lr, algo="ftpl")
+    plt.plot(range(n1), actions1)
+    plt.plot(range(n1), actions2)
+    plt.show()
 
 
 if __name__ == '__main__':
-    print("Part 1")
+    print("\nPart 1\n")
+
+    n1 = 10000
+    k1 = 100
+    theo_lr = math.sqrt(math.log(k1) / n1)
+
+    # uniform [0,1]
+    data1 = gen_data(n1, k1, 2, 1, np.random.random_sample)
+    data2 = gen_data(n1, k1, 5, 1, np.random.random_sample)
+    data3 = gen_data(n1, k1, 10, 1, np.random.random_sample)
+    data4 = gen_data(n1, k1, 10, 4, np.random.random_sample)
+
+    plot_results(data1, theo_lr)
+    plot_results(data1, 0.15)
+    plot_results(data2, theo_lr)
+    plot_results(data2, 0.1)
+    plot_results(data3, theo_lr)
+    plot_results(data4, theo_lr)
