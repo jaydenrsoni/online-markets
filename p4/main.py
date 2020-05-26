@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import math
 
 
-# num_bidders bidders with values on distribution f, num_items items for n rounds and k possible reserve prices [0,1)
+# num_bidders bidders with values from distribution f, num_items items for n rounds and k possible reserve prices [0,1)
 def gen_data(n, k, num_bidders, num_items, f, verbose=False):
     payoffs = [[0] * k for _ in range(n)]
     player_bids = [[f() for _ in range(num_bidders)] for _ in range(n)]
@@ -28,10 +28,9 @@ def quadratic_dist():
 
 
 # part 1
-def online_reserve_pricing(data, lr, algo="ew", verbose=False):
+def online_reserve_pricing(data, lr, h, algo="ew", verbose=False):
     n = len(data)                    # num rounds
     k = len(data[0])                 # num actions
-    h = 1
 
     hallucinations = np.random.geometric(p=lr, size=k) * h  # only used for ftpl
     if verbose and algo == "ftpl":
@@ -58,7 +57,7 @@ def online_reserve_pricing(data, lr, algo="ew", verbose=False):
         else:
             raise Exception("not a valid algorithm")
 
-        actions.append(action/k)
+        actions.append(action/k * h)
         payoffs.append(curr_payoffs[action])
 
         # update V with payoffs from current round
@@ -74,16 +73,16 @@ def online_reserve_pricing(data, lr, algo="ew", verbose=False):
     print("last payoffs: ", payoffs[n - 100:])
     print("converged action: ", sum(actions[n - 100:])/100)
     print("converged payoff: ", sum(payoffs[n - 100:])/100)
-    print("best in hindsight action: ", np.argmax(action_payoffs)/k)
+    print("best in hindsight action: ", np.argmax(action_payoffs)/k * h)
     print("best in hindsight payoff: ", best_in_hindsight_payoff/n)
     print("average payoff: ", sum(payoffs)/n)
     print("regret: ", regret, "\n")
     return actions
 
 
-def plot_results(data, lr, title):
-    actions1 = online_reserve_pricing(data, lr, algo="ew")
-    actions2 = online_reserve_pricing(data, lr, algo="ftpl")
+def plot_results(data, lr, title, h=1):
+    actions1 = online_reserve_pricing(data, lr, h, algo="ew")
+    actions2 = online_reserve_pricing(data, lr, h, algo="ftpl")
     plt.plot(range(n1), actions1, label="ew")
     plt.plot(range(n1), actions2, label="ftpl")
     plt.xlabel("Round")
@@ -92,13 +91,26 @@ def plot_results(data, lr, title):
     plt.show()
 
 
-if __name__ == '__main__':
-    print("\nPart 1\n")
+# part 2
+def uniform_selling_intros_payoffs(n, k, verbose=False):
+    payoffs = [[0] * k for _ in range(n)]
+    for i in range(n):
+        # assume both buyers have values from uniform distribution [0,1]
+        v1 = np.random.random_sample()
+        v2 = np.random.random_sample()
+        for j in range(k):
+            thresh = (j/k) * 2
+            payoffs[i][j] += (thresh-v2) + (thresh-v1) if v1 + v2 >= thresh else 0
+    if verbose:
+        print(payoffs[0])
+    return payoffs
 
-    n1 = 10000
-    k1 = 100
-    theo_lr = math.sqrt(math.log(k1) / n1)
 
+def calculate_virtual_value(v, bigf, littlef):
+    return v - (1 - bigf)/littlef
+
+
+def part1():
     # uniform [0,1]
     data1 = gen_data(n1, k1, 2, 1, np.random.random_sample)
     data2 = gen_data(n1, k1, 5, 1, np.random.random_sample)
@@ -124,3 +136,33 @@ if __name__ == '__main__':
     plot_results(data6, 0.06, "quad 5 bidders, 1 item, lr = 0.06")
     plot_results(data7, theo_lr, "quad 10 bidders, 1 item, lr = " + str(theo_lr))
     plot_results(data8, theo_lr, "quad 10 bidders, 4 items, lr = " + str(theo_lr))
+
+
+def part2():
+    data2_1 = uniform_selling_intros_payoffs(n1, k1)
+    plot_results(data2_1, theo_lr, "test, lr = " + str(theo_lr), h=2)
+    plot_results(data2_1, 0.15, "test, lr = 0.15", h=2)
+
+
+def sanity_check_on_pricing():
+    v1 = np.random.random_sample()
+    v2 = np.random.random_sample()
+    test = []
+    test2 = []
+    for j in range(100):
+        thresh = (j / 100) * 2
+        test.append(
+            (thresh - v2) + (thresh - v1) if v1 + v2 >= thresh and v1 >= thresh - v2 and v2 >= thresh - v1 else 0)
+        test2.append((thresh - v2) + (thresh - v1) if v1 + v2 >= thresh else 0)
+    print(test == test2)
+
+
+if __name__ == '__main__':
+    n1 = 10000
+    k1 = 100
+    theo_lr = math.sqrt(math.log(k1) / n1)
+
+    print("\nPart 1\n")
+    # part1()
+    print("\nPart 2\n")
+    part2()
