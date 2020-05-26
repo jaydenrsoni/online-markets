@@ -3,31 +3,6 @@ import matplotlib.pyplot as plt
 import math
 
 
-# num_bidders bidders with values from distribution f, num_items items for n rounds and k possible reserve prices [0,1)
-def gen_data(n, k, num_bidders, num_items, f, verbose=False):
-    payoffs = [[0] * k for _ in range(n)]
-    player_bids = [[f() for _ in range(num_bidders)] for _ in range(n)]
-    for i in range(n):
-        for j in range(k):
-            bids = set(player_bids[i])
-            max_bids = []
-            for _ in range(num_items):
-                max_bids.append(max(bids))
-                bids = bids - {max(bids)}
-            price = max(bids)
-            for bid in max_bids:
-                payoffs[i][j] += max(price, j/k) if bid >= j/k else 0
-    if verbose:
-        print(player_bids[0])
-        print(payoffs[0])
-    return payoffs
-
-
-def quadratic_dist():
-    return math.sqrt(np.random.random_sample())
-
-
-# part 1
 def online_reserve_pricing(data, lr, h, algo="ew", verbose=False):
     n = len(data)                    # num rounds
     k = len(data[0])                 # num actions
@@ -57,7 +32,7 @@ def online_reserve_pricing(data, lr, h, algo="ew", verbose=False):
         else:
             raise Exception("not a valid algorithm")
 
-        actions.append(action/k * h)
+        actions.append(round(action/k * h, 2))
         payoffs.append(curr_payoffs[action])
 
         # update V with payoffs from current round
@@ -73,10 +48,11 @@ def online_reserve_pricing(data, lr, h, algo="ew", verbose=False):
     print("last payoffs: ", payoffs[n - 100:])
     print("converged action: ", sum(actions[n - 100:])/100)
     print("converged payoff: ", sum(payoffs[n - 100:])/100)
-    print("best in hindsight action: ", np.argmax(action_payoffs)/k * h)
+    print("best in hindsight action: ", round(np.argmax(action_payoffs)/k * h, 2))
     print("best in hindsight payoff: ", best_in_hindsight_payoff/n)
     print("average payoff: ", sum(payoffs)/n)
     print("regret: ", regret, "\n")
+    print(action_payoffs[int(k/2)]/n)
     return actions
 
 
@@ -91,11 +67,33 @@ def plot_results(data, lr, title, h=1):
     plt.show()
 
 
+# part 1
+# num_bidders bidders with values from distribution f [0,1), num_items items for n rounds and k possible reserve prices
+def gen_data(n, k, num_bidders, num_items, f, h=1, verbose=False):
+    payoffs = [[0] * k for _ in range(n)]
+    player_bids = [[f() for _ in range(num_bidders)] for _ in range(n)]
+    for i in range(n):
+        for j in range(k):
+            bids = set(player_bids[i])
+            max_bids = []
+            for _ in range(num_items):
+                max_bids.append(max(bids))
+                bids = bids - {max(bids)}
+            price = max(bids)
+            for bid in max_bids:
+                payoffs[i][j] += max(price, j/k * h) if bid >= j/k * h else 0
+    if verbose:
+        print(player_bids[0])
+        print(payoffs[0])
+    return payoffs
+
+
 # part 2
+# revenue for selling intro between 2 bidders with values from uniform distribution [0,1], n rounds and k possible
+# v1 + v2 thresholds [0,2]
 def uniform_selling_intros_payoffs(n, k, verbose=False):
     payoffs = [[0] * k for _ in range(n)]
     for i in range(n):
-        # assume both buyers have values from uniform distribution [0,1]
         v1 = np.random.random_sample()
         v2 = np.random.random_sample()
         for j in range(k):
@@ -106,8 +104,18 @@ def uniform_selling_intros_payoffs(n, k, verbose=False):
     return payoffs
 
 
-def calculate_virtual_value(v, bigf, littlef):
-    return v - (1 - bigf)/littlef
+# revenue for selling intro between num_part participants with values from distributions dists [0,h], n rounds and k
+# possible v1 + v2 + ... thresholds [0,h * num_bidders]
+def gen_data2(n, k, num_part, dists, h=1, verbose=False):
+    payoffs = [[0] * k for _ in range(n)]
+    for i in range(n):
+        values = [dists[j]() for j in range(num_part)]
+        for j in range(k):
+            thresh = (j/k) * h * num_part
+            payoffs[i][j] += thresh * num_part - math.fsum(values)*(num_part-1) if sum(values) >= thresh else 0
+    if verbose:
+        print(payoffs[0])
+    return payoffs
 
 
 def part1():
@@ -139,9 +147,27 @@ def part1():
 
 
 def part2():
-    data2_1 = uniform_selling_intros_payoffs(n1, k1)
-    plot_results(data2_1, theo_lr, "test, lr = " + str(theo_lr), h=2)
-    plot_results(data2_1, 0.15, "test, lr = 0.15", h=2)
+    # data2_1 = uniform_selling_intros_payoffs(n1, k1)
+    # plot_results(data2_1, theo_lr, "test, lr = " + str(theo_lr), h=2)
+    # plot_results(data2_1, 0.15, "test, lr = 0.15", h=2)
+
+    data2_1 = gen_data2(n1, k1, 2, [np.random.random_sample] * 2)
+    plot_results(data2_1, theo_lr, "uni 2 participants, lr = " + str(theo_lr), h=2)
+    plot_results(data2_1, 0.15, "uni 2 participants, lr = 0.15", h=2)
+
+    data2_2 = gen_data2(n1, k1 * 3, 3, [np.random.random_sample] * 3)
+    plot_results(data2_2, theo_lr, "uni 3 participants, lr = " + str(theo_lr), h=3)
+
+    data2_3 = gen_data2(n1, k1 * 4, 4, [np.random.random_sample] * 4)
+    plot_results(data2_3, theo_lr, "uni 4 participants, lr = " + str(theo_lr), h=4)
+
+
+def quadratic_dist():
+    return math.sqrt(np.random.random_sample())
+
+
+def calculate_virtual_value(v, bigf, littlef):
+    return v - (1 - bigf)/littlef
 
 
 def sanity_check_on_pricing():
@@ -163,6 +189,6 @@ if __name__ == '__main__':
     theo_lr = math.sqrt(math.log(k1) / n1)
 
     print("\nPart 1\n")
-    # part1()
+    part1()
     print("\nPart 2\n")
     part2()
