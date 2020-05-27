@@ -67,7 +67,10 @@ def plot_results(data, lr, title, h=1):
     plt.show()
 
 
-# part 1
+def quadratic_dist():
+    return math.sqrt(np.random.random_sample())
+
+
 # num_bidders bidders with values from distribution f [0,1), num_items items for n rounds and k possible reserve prices
 def gen_data(n, k, num_bidders, num_items, f, h=1, verbose=False):
     payoffs = [[0] * k for _ in range(n)]
@@ -84,22 +87,6 @@ def gen_data(n, k, num_bidders, num_items, f, h=1, verbose=False):
                 payoffs[i][j] += max(price, j/k * h) if bid >= j/k * h else 0
     if verbose:
         print(player_bids[0])
-        print(payoffs[0])
-    return payoffs
-
-
-# part 2
-# revenue for selling intro between 2 bidders with values from uniform distribution [0,1], n rounds and k possible
-# v1 + v2 thresholds [0,2]
-def uniform_selling_intros_payoffs(n, k, verbose=False):
-    payoffs = [[0] * k for _ in range(n)]
-    for i in range(n):
-        v1 = np.random.random_sample()
-        v2 = np.random.random_sample()
-        for j in range(k):
-            thresh = (j/k) * 2
-            payoffs[i][j] += (thresh-v2) + (thresh-v1) if v1 + v2 >= thresh else 0
-    if verbose:
         print(payoffs[0])
     return payoffs
 
@@ -136,7 +123,7 @@ def part1():
     data5 = gen_data(n1, k1, 2, 1, quadratic_dist)
     data6 = gen_data(n1, k1, 5, 1, quadratic_dist)
     data7 = gen_data(n1, k1, 10, 1, quadratic_dist)
-    data8 = gen_data(n1, k1, 10, 6, quadratic_dist)
+    data8 = gen_data(n1, k1, 10, 4, quadratic_dist)
 
     plot_results(data5, theo_lr, "quad 2 bidders, 1 item, lr = " + str(theo_lr))
     plot_results(data5, 0.1, "quad 2 bidders, 1 item, lr = 0.1")
@@ -147,10 +134,8 @@ def part1():
 
 
 def part2():
-    # data2_1 = uniform_selling_intros_payoffs(n1, k1)
-    # plot_results(data2_1, theo_lr, "test, lr = " + str(theo_lr), h=2)
-    # plot_results(data2_1, 0.15, "test, lr = 0.15", h=2)
 
+    # uniform [0,1]
     data2_1 = gen_data2(n1, k1, 2, [np.random.random_sample] * 2)
     plot_results(data2_1, theo_lr, "uni 2 participants, lr = " + str(theo_lr), h=2)
     plot_results(data2_1, 0.15, "uni 2 participants, lr = 0.15", h=2)
@@ -161,26 +146,15 @@ def part2():
     data2_3 = gen_data2(n1, k1 * 4, 4, [np.random.random_sample] * 4)
     plot_results(data2_3, theo_lr, "uni 4 participants, lr = " + str(theo_lr), h=4)
 
+    # quadratic [0,1]
+    data2_4 = gen_data2(n1, k1, 2, [quadratic_dist] * 2)
+    plot_results(data2_4, theo_lr, "quad 2 participants, lr = " + str(theo_lr), h=2)
+    plot_results(data2_4, 0.15, "quad 2 participants, lr = 0.15", h=2)
 
-def quadratic_dist():
-    return math.sqrt(np.random.random_sample())
-
-
-def calculate_virtual_value(v, bigf, littlef):
-    return v - (1 - bigf)/littlef
-
-
-def sanity_check_on_pricing():
-    v1 = np.random.random_sample()
-    v2 = np.random.random_sample()
-    test = []
-    test2 = []
-    for j in range(100):
-        thresh = (j / 100) * 2
-        test.append(
-            (thresh - v2) + (thresh - v1) if v1 + v2 >= thresh and v1 >= thresh - v2 and v2 >= thresh - v1 else 0)
-        test2.append((thresh - v2) + (thresh - v1) if v1 + v2 >= thresh else 0)
-    print(test == test2)
+    # one uniform, one quadratic [0,1]
+    data2_5 = gen_data2(n1, k1, 2, [np.random.random_sample, quadratic_dist])
+    plot_results(data2_5, theo_lr, "uni/quad 2 participants, lr = " + str(theo_lr), h=2)
+    plot_results(data2_5, 0.15, "uni/quad 2 participants, lr = 0.15", h=2)
 
 
 if __name__ == '__main__':
